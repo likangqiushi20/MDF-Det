@@ -1,0 +1,64 @@
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Model weights and checkpoints
+*.h5
+*.hdf5
+*.ckpt
+*.ckpt.*
+*.pth
+*.pt
+*.onnx
+*.pb
+*.tflite
+saved_model*.model/
+saved_model*.model
+
+# Keep the small normalization files required at inference time
+Models/*
+!Models/BinaryClassification/
+Models/BinaryClassification/*
+!Models/BinaryClassification/saved_image_norm_2.model
+!Models/Regression/
+Models/Regression/*
+!Models/Regression/saved_image_norm_3.model
+
+# Datasets, generated labels, caches, and experiment outputs
+WAMI-input/
+WAMI-output/
+DrawResults/
+prior_labels/
+cache/
+outputs/
+results/
+runs/
+logs/
+run.txt
+
+# Large data and generated media
+*.mat
+*.npy
+*.npz
+!regression_norm_params.npz
+*.nitf
+*.ntf
+*.tif
+*.tiff
+*.png
+*.jpg
+*.jpeg
+*.avi
+*.mp4
+
