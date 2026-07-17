@@ -62,3 +62,5 @@ run.txt
 *.avi
 *.mp4
 
+# README figures are intentionally versioned
+!docs/images/*.png

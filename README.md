@@ -9,6 +9,39 @@ The repository contains source code and small normalization parameters only.
 Model weights, datasets, cached files, and experiment outputs are intentionally
 excluded.
 
+## What WAMI looks like
+
+![WAMI coverage and small-target scale](docs/images/wami_overview.png)
+
+Wide Area Motion Imagery observes a very large geographic area in every frame,
+often covering roads, buildings, vegetation, water, and airfields at the same
+time. The two magnified insets illustrate the defining scale challenge: a
+vehicle that matters to the detector occupies only a few pixels inside the
+original wide-area frame. Platform motion, parallax, low target contrast, and
+cluttered backgrounds therefore make direct frame-by-frame object detection
+difficult.
+
+## Method overview
+
+![MDF-Det research framework](docs/images/mdf_det_framework.png)
+
+The proposed framework is organized into three complementary stages:
+
+1. **Motion and appearance feature fusion.** Historical frames are aligned to
+   the current frame. Gray-level background differences and optical-flow motion
+   cues are fused to generate high-recall coarse candidates.
+2. **Spatial attention-guided target decoupling.** Multi-frame patches are
+   screened by a binary classifier, encoded at multiple feature levels, and
+   regressed into a response heatmap. Upsampling, thresholding, and decoupling
+   recover precise centers, including multiple nearby vehicles inside one
+   candidate region.
+3. **Scene-prior guided filtering.** A scene-prior network estimates where
+   vehicles are plausible—especially road structures—and suppresses detections
+   caused by background motion or clutter away from relevant regions.
+
+The surviving detections form the final wide-area moving-target output and can
+be associated over time by the tracker.
+
 ## Pipeline
 
 1. Register previous frames to the current frame with ORB features and a
