@@ -1,9 +1,9 @@
 # MDF-Det
 
-MDF-Det detects and tracks small moving vehicles in Wide Area Motion Imagery
-(WAMI). It combines image registration, multi-frame background subtraction,
-CNN candidate refinement, position regression, optional optical-flow motion
-fusion, and Kalman-filter tracking.
+MDF-Det detects small moving vehicles in Wide Area Motion Imagery (WAMI). It
+combines image registration, multi-frame background subtraction, CNN candidate
+refinement, position regression, optional optical-flow motion fusion, and
+scene-prior filtering.
 
 The repository contains source code and small normalization parameters only.
 Model weights, datasets, cached files, and experiment outputs are intentionally
@@ -39,8 +39,7 @@ The proposed framework is organized into three complementary stages:
    vehicles are plausible—especially road structures—and suppresses detections
    caused by background motion or clutter away from relevant regions.
 
-The surviving detections form the final wide-area moving-target output and can
-be associated over time by the tracker.
+The surviving detections form the final wide-area moving-target output.
 
 ## Pipeline
 
@@ -50,14 +49,13 @@ be associated over time by the tracker.
 3. Generate moving-object candidates by background subtraction.
 4. Reject false candidates with a binary CNN.
 5. Estimate vehicle centers with a regression CNN.
-6. Optionally fuse optical-flow motion, scene priors, and Kalman tracking.
+6. Optionally fuse optical-flow motion and scene-prior filtering.
 
 ## Repository structure
 
 ```text
 MovingObjectDetector/       Registration, background modeling and refinement
 TrainNetwork/               Legacy CNN training and model-loading utilities
-SimpleTracker/              Kalman filter implementation
 WAMI_detector.py            Basic full-frame detector
 WAMI_detector_multi_AOI.py  Multi-AOI detector with motion/prior fusion
 WAMI_detector_multi_AOI_origreg.py

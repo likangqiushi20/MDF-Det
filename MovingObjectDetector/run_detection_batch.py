@@ -5,7 +5,6 @@ from MovingObjectDetector.BackgroundModel import BackgroundModel
 from MovingObjectDetector.DetectionRefinement import DetectionRefinement
 import TrainNetwork.BaseFunctions as basefunctions
 import timeit
-from SimpleTracker.KalmanFilter import KalmanFilter
 from copy import copy
 from MovingObjectDetector.BaseFunctions import TimePropagate, TimePropagate_, draw_error_ellipse2d
 import hdf5storage

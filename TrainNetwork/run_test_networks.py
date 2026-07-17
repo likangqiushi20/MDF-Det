@@ -7,7 +7,6 @@ from MovingObjectDetector.BackgroundModel import BackgroundModel
 from MovingObjectDetector.DetectionRefinement import DetectionRefinement
 import TrainNetwork.BaseFunctions as basefunctions
 import timeit
-from SimpleTracker.KalmanFilter import KalmanFilter
 from copy import copy
 from MovingObjectDetector.BaseFunctions import TimePropagate, TimePropagate_, draw_error_ellipse2d
 import hdf5storage
@@ -60,6 +59,5 @@ for thisDetection in Detections2_for_img:
             and (thisDetection[1] < input_image.shape[0]):
         cv2.circle(output_image, (thisDetection[0], thisDetection[1]), 6, (0, 0, 200), 1)
 print("Draw image finished...")
-
 
 
