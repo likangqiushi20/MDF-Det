@@ -145,6 +145,10 @@ and matching options.
 
 ## Data and weights policy
 
+The dataset is not distributed with this repository. To request access for
+research use, please contact the author at
+[likangqiushi20@nudt.edu.cn](mailto:likangqiushi20@nudt.edu.cn).
+
 Do not commit model weights, WAMI imagery, generated labels, or experiment
 outputs. The supplied `.gitignore` excludes these files. For reproducible
 inference, publish weights separately (for example, as a GitHub Release or an
