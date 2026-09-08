@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 class DetectionRefinement:
 
     def __init__(self, input_image, compensatedImages, CandidateCentres,
-                 BackgroundSubtractionProperties, BackgroundSubtractionLabels, model):
+                 BackgroundSubtractionProperties, BackgroundSubtractionLabels, model,
+                 classifier_threshold=0.7, regression_threshold=0.17):
         self.num_of_template = len(compensatedImages)
         self.img_t = input_image
         self.img_tminus1 = compensatedImages[self.num_of_template - 1]
@@ -22,10 +23,13 @@ class DetectionRefinement:
         self.aveImg_binary = model[1]
         self.model_regression = model[2]
         self.aveImg_regression = model[3]
+        self.classifier_threshold = float(classifier_threshold)
+        self.regression_threshold = float(regression_threshold)
         self.RefinedCentres = []
         self.AcceptedDetectionProp = []          # 不再使用，保留兼容
         self.PendingForRegressionProp = []       # 将包含所有分类接受的区域
         self.PredictedPositions = []
+        self.PredictedScores = []
 
     def refine_centres(self):
         img_shape = self.img_t.shape
@@ -51,11 +55,19 @@ class DetectionRefinement:
         ValidCandidateCentres = self.CandidateCentres[mask1, ...]
         X, _ = bf.DataNormalisationZeroCentred(X, self.aveImg_binary)
         predictResults = self.model_binary.predict(X, batch_size=5000, verbose=0)
+        # Joint M1 has named gate/heatmap outputs.  The legacy classifier
+        # returns its gate directly.  Keep the downstream routing identical by
+        # exposing only Joint M1's gate here; its heatmap is not used when the
+        # old spatial-attention regressor is selected.
+        if isinstance(predictResults, dict):
+            if "gate" not in predictResults:
+                raise KeyError("Joint classifier output does not contain 'gate'")
+            predictResults = np.asarray(predictResults["gate"])
         # mask2 relates to the filtered detections (by mask1) that are accepted by CNN
         mask2 = np.zeros(len(predictResults), dtype=np.bool)
         for idx in range(len(predictResults)):
             thisResult = predictResults[idx]
-            if thisResult[0] > 0.7:
+            if thisResult[0] > self.classifier_threshold:
                 mask2[idx] = True
         RefinedCentres = ValidCandidateCentres[mask2, ...]
         # mask 3 maps raw background subtraction detections to CNN accepted detections
@@ -90,9 +102,10 @@ class DetectionRefinement:
 
     def predict_moving_obj_locations(self):
         PredictedPositions_final = []
+        PredictedScores_final = []
         win_size = 22
         net_dim = 2 * win_size + 1
-        T = 0.17
+        T = self.regression_threshold
         img_shape = self.img_t.shape
         for PendingForRegressionProp_ele in self.PendingForRegressionProp:
             PredictedPositions_ele_raw = []
@@ -113,8 +126,10 @@ class DetectionRefinement:
                     X, _ = bf.DataNormalisationZeroCentred(X, self.aveImg_regression)
                     RegressionResult = self.model_regression.predict(X, batch_size=1, verbose=0)
                     RegressionResult = cv2.resize(np.reshape(RegressionResult, (15, 15)), (45, 45))
-                    PredictedPositions_ele_raw.extend(
-                        extractPointsFromRegressionImage(RegressionResult, min_r, min_c, T))
+                    new_points = extractPointsFromRegressionImage(RegressionResult, min_r, min_c, T)
+                    for point in new_points:
+                        score = float(RegressionResult[int(point[0] - min_r), int(point[1] - min_c)])
+                        PredictedPositions_ele_raw.append((point, score))
             else:
                 start_r = min([BoundingBox[0] + win_size / 2, centre[0]])
                 end_r = max([BoundingBox[2], centre[0]])
@@ -138,20 +153,26 @@ class DetectionRefinement:
                             X, _ = bf.DataNormalisationZeroCentred(X, self.aveImg_regression)
                             RegressionResult = self.model_regression.predict(X, batch_size=1, verbose=0)
                             RegressionResult = cv2.resize(np.reshape(RegressionResult, (15, 15)), (45, 45))
-                            PredictedPositions_ele_raw.extend(
-                                extractPointsFromRegressionImage(RegressionResult, min_r, min_c, T))
+                            new_points = extractPointsFromRegressionImage(RegressionResult, min_r, min_c, T)
+                            for point in new_points:
+                                score = float(RegressionResult[int(point[0] - min_r), int(point[1] - min_c)])
+                                PredictedPositions_ele_raw.append((point, score))
                         current_c += win_size
                     current_c = start_c
                     current_r += win_size
             # We only consider the detections within the bounding box
             PredictedPositions_ele = []
-            for d_ele in PredictedPositions_ele_raw:
+            PredictedScores_ele = []
+            for d_ele, score_ele in PredictedPositions_ele_raw:
                 if (d_ele[0] > BoundingBox[0]) and (d_ele[0] < BoundingBox[2]) \
                         and (d_ele[1] > BoundingBox[1]) and (d_ele[1] < BoundingBox[3]):
                     PredictedPositions_ele.append(d_ele)
+                    PredictedScores_ele.append(score_ele)
 
             PredictedPositions_final.extend(PredictedPositions_ele)
+            PredictedScores_final.extend(PredictedScores_ele)
         self.PredictedPositions = PredictedPositions_final
+        self.PredictedScores = PredictedScores_final
         return PredictedPositions_final
 
     def do_refine_bs(self):
@@ -165,16 +186,16 @@ class DetectionRefinement:
         Detections2 = []
 
         # 所有检测均来自回归CNN的预测
-        for PredictedPositions_ele in self.PredictedPositions:
+        for PredictedPositions_ele, PredictedScore_ele in zip(self.PredictedPositions, self.PredictedScores):
             tmp_detection_struct = {}
             tmp_detection_struct["centre"] = PredictedPositions_ele
+            tmp_detection_struct["confidence"] = float(PredictedScore_ele)
             tmp_rs = np.expand_dims(np.array(range(PredictedPositions_ele[0]-5, PredictedPositions_ele[0]+6)), axis=1)
             tmp_cs = np.expand_dims(np.array(range(PredictedPositions_ele[1]-5, PredictedPositions_ele[1]+6)), axis=1)
             tmp_detection_struct["coords"] = np.concatenate((tmp_rs, tmp_cs), axis=1)
             Detections2.append(tmp_detection_struct)
 
         return Detections1, Detections2, RefinedCentres
-
 
 # if A is an element in B
 def ismember(A, B):

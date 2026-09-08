@@ -28,8 +28,7 @@ def save_heatmap(array, filepath, cmap='jet'):
 
 def main():
     parser = argparse.ArgumentParser(description='单独保存回归样本15×15和45×45热力图')
-    parser.add_argument('--sample_folder', type=str,
-                        default=r"D:\Lkqs\sys\code\regression_training_samples",
+    parser.add_argument('--sample_folder', type=str, required=True,
                         help='回归训练样本 .mat 文件所在文件夹')
     parser.add_argument('--num_samples', type=int, default=20,
                         help='要保存的样本数量，默认20')

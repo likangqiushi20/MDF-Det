@@ -29,7 +29,6 @@ from MovingObjectDetector.MotionAwareBackgroundModel import MotionAwareBackgroun
 from MovingObjectDetector.BackgroundModel import BackgroundModel
 from MovingObjectDetector.DetectionRefinement import DetectionRefinement
 from MovingObjectDetector.ImageProcFunc import CalcHomography
-from scene_prior_net import build_scene_prior_net
 
 # --------------------- 地理工具函数 ---------------------
 def haversine_distance(lat1, lon1, lat2, lon2):
@@ -146,24 +145,53 @@ def merge_close_points(points, dist):
             clusters.append((x, y, 1))
     return [(sx/cnt, sy/cnt) for sx, sy, cnt in clusters]
 
+def merge_close_scored_points(points, dist):
+    """Merge points as before while retaining the maximum regression score."""
+    if len(points) == 0: return []
+    clusters = []
+    for x, y, score in points:
+        best = float('inf'); best_idx = -1
+        for i, (sx, sy, cnt, max_score) in enumerate(clusters):
+            cx, cy = sx/cnt, sy/cnt
+            d = np.hypot(x-cx, y-cy)
+            if d < best: best = d; best_idx = i
+        if best_idx != -1 and best < dist:
+            sx, sy, cnt, max_score = clusters[best_idx]
+            clusters[best_idx] = (sx+x, sy+y, cnt+1, max(max_score, score))
+        else:
+            clusters.append((x, y, 1, score))
+    return [(sx/cnt, sy/cnt, max_score) for sx, sy, cnt, max_score in clusters]
+
 def filter_by_border(points, shape, border):
     h, w = shape[:2]
     return [(x, y) for x, y in points if border <= x < w-border and border <= y < h-border]
 
-def filter_by_scene_prior(det_list, prior_map, img_shape, thresh=0.1):
+def filter_by_scene_prior(det_list, prior_map, img_shape, thresh=0.1,
+                          confidence_bypass=None, soft_alpha=None,
+                          soft_threshold=None):
     if len(det_list) == 0: return []
     if prior_map.shape[:2] != img_shape[:2]:
         prior_map = cv2.resize(prior_map, (img_shape[1], img_shape[0]))
     filtered = []
     for d in det_list:
         r, c = d['centre']
-        if prior_map[int(r), int(c)] >= thresh:
+        prior_score = float(prior_map[int(r), int(c)])
+        confidence = float(d.get('confidence', 0.0))
+        if soft_alpha is not None:
+            final_score = confidence * (soft_alpha + (1.0 - soft_alpha) * prior_score)
+            if final_score >= soft_threshold:
+                filtered.append(d)
+            continue
+        prior_ok = prior_score >= thresh
+        confidence_ok = (confidence_bypass is not None and
+                         confidence >= confidence_bypass)
+        if prior_ok or confidence_ok:
             filtered.append(d)
     return filtered
 
 def process_one_aoi(aoi, png_folder, out_dir, params, models):
     model_bin, aveImg_bin, model_reg, aveImg_reg = models
-    prior_net = params.get('prior_net', None)
+    static_prior = params.get('static_prior', None)
 
     frame_nums = list(range(params['start_frame'], params['start_frame'] + params['num_frames']))
     aoi_bounds = AOI_GEO_BOUNDS[aoi]
@@ -213,12 +241,8 @@ def process_one_aoi(aoi, png_folder, out_dir, params, models):
         t_start = timeit.default_timer()
 
         prior_map_full = None
-        if params['use_scene_prior'] and prior_net is not None:
-            prior_input_size = params.get('prior_input_size', (256,256))
-            img_r = cv2.resize(img, prior_input_size)
-            inp = img_r[np.newaxis, ..., np.newaxis] / 255.0
-            prior_map = prior_net.predict(inp, verbose=0)[0, ..., 0]
-            prior_map_full = cv2.resize(prior_map, (img.shape[1], img.shape[0]))
+        if params['use_scene_prior'] and static_prior is not None:
+            prior_map_full = cv2.resize(static_prior, (img.shape[1], img.shape[0]))
 
         Hs = []
         for i in range(params['num_templates']):
@@ -231,16 +255,28 @@ def process_one_aoi(aoi, png_folder, out_dir, params, models):
 
         dr = DetectionRefinement(img, bgt.getCompensatedImages(), cand_centres,
                                  bg_props, bg_labels,
-                                 (model_bin, aveImg_bin, model_reg, aveImg_reg))
+                                 (model_bin, aveImg_bin, model_reg, aveImg_reg),
+                                 classifier_threshold=params['classifier_threshold'],
+                                 regression_threshold=params['regression_threshold'])
         det1, det2, _ = dr.do_refine_bs()
         dets = det1 + det2
 
         if params['use_scene_prior'] and prior_map_full is not None:
-            dets = filter_by_scene_prior(dets, prior_map_full, img.shape, params['prior_threshold'])
+            dets = filter_by_scene_prior(
+                dets, prior_map_full, img.shape, params['prior_threshold'],
+                params.get('prior_confidence_bypass'),
+                params.get('prior_soft_alpha'),
+                params.get('prior_soft_threshold'))
 
-        det_pixels_all = [(int(d['centre'][1]), int(d['centre'][0])) for d in dets]
-        det_pixels_border = filter_by_border(det_pixels_all, img.shape, border)
-        det_pixels_merged = merge_close_points(det_pixels_border, params['merge_distance_pixel'])
+        det_pixels_all = [(int(d['centre'][1]), int(d['centre'][0]),
+                           float(d.get('confidence', 1.0))) for d in dets]
+        h, w = img.shape[:2]
+        det_pixels_border = [(x, y, score) for x, y, score in det_pixels_all
+                             if border <= x < w-border and border <= y < h-border]
+        det_pixels_merged_scored = merge_close_scored_points(
+            det_pixels_border, params['merge_distance_pixel'])
+        det_pixels_merged = [(x, y) for x, y, _ in det_pixels_merged_scored]
+        det_scores_merged = [score for _, _, score in det_pixels_merged_scored]
 
         truth_lonlats_all = truth_by_frame.get(frame_num, [])
         truth_pixels_all = []
@@ -265,9 +301,13 @@ def process_one_aoi(aoi, png_folder, out_dir, params, models):
 
         csv_path = os.path.join(csv_dir, f"frame{frame_num:06d}.csv")
         if det_lonlats:
-            np.savetxt(csv_path, np.array(det_lonlats), delimiter=',', fmt='%.6f', header='lon,lat', comments='')
+            scored_lonlats = [(lon, lat, score) for (lon, lat), score
+                              in zip(det_lonlats, det_scores_merged)]
+            np.savetxt(csv_path, np.array(scored_lonlats), delimiter=',', fmt='%.6f',
+                       header='lon,lat,confidence', comments='')
         else:
-            np.savetxt(csv_path, np.empty((0,2)), delimiter=',', fmt='%.6f', header='lon,lat', comments='')
+            np.savetxt(csv_path, np.empty((0,3)), delimiter=',', fmt='%.6f',
+                       header='lon,lat,confidence', comments='')
 
         vis_img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
         if border > 0:
@@ -301,6 +341,8 @@ def main():
     parser = argparse.ArgumentParser(description='Multi-AOI WAMI Detector with Additive Motion Fusion')
     parser.add_argument('--aoi_list', nargs='+', default=['01','02','03','34','40','41'])
     parser.add_argument('--png_root', required=True)
+    parser.add_argument('--png-folder', default=None,
+                        help='Direct AOI image directory override; use only with one AOI in --aoi_list')
     parser.add_argument('--truth_csv', required=True)
     parser.add_argument('--start_frame', type=int, default=295)
     parser.add_argument('--num_frames', type=int, default=25)
@@ -308,16 +350,36 @@ def main():
     parser.add_argument('--binary_model_dir', default='Models/')
     parser.add_argument('--regression_model', default='regression_spatial_attention.h5')
     parser.add_argument('--regression_norm', default='regression_norm_params.npz')
-    parser.add_argument('--prior_model', default='scene_prior_net.h5')
-    parser.add_argument('--prior_input_size', default='256,256')
+    parser.add_argument('--classifier-threshold', type=float, default=0.7,
+                        help='Binary-classifier acceptance threshold')
+    parser.add_argument('--regression-threshold', type=float, default=0.17,
+                        help='Regression heatmap peak threshold')
+    parser.add_argument('--static-prior-map', default=None,
+                        help='SPGF-V4 HxW .npy prior generated once for the fixed AOI')
+    parser.add_argument('--prior-dilation-radius', type=int, default=0,
+                        help='Dilate a static prior map by this many pixels before filtering')
+    parser.add_argument('--full-aoi-prior-model', default=None,
+                        help='Native-resolution SPGF-V4 Keras model; predicts one fixed AOI prior from --full-aoi-prior-context')
+    parser.add_argument('--full-aoi-prior-context', default=None,
+                        help='Fixed context_background.png used by --full-aoi-prior-model')
 
-    parser.add_argument('--use_motion', action='store_true', default=True)
-    parser.add_argument('--use_scene_prior', action='store_true', default=True)
+    # Explicit negative switches are required for paired revision ablations.
+    # Python 3.7-compatible form (the published wami_detector environment).
+    parser.add_argument('--use-motion', '--use_motion', dest='use_motion', action='store_true', default=True)
+    parser.add_argument('--no-motion', '--no_motion', dest='use_motion', action='store_false')
+    parser.add_argument('--use-scene-prior', '--use_scene_prior', dest='use_scene_prior', action='store_true', default=False)
+    parser.add_argument('--no-scene-prior', '--no_scene_prior', dest='use_scene_prior', action='store_false')
 
     parser.add_argument('-T', '--BSThreshold', type=float, default=2)
     parser.add_argument('--motion_alpha', type=float, default=10.0, help='加性运动权重 α')
     parser.add_argument('--motion_thr', type=float, default=0.1, help='运动阈值 τ')
     parser.add_argument('--prior_threshold', type=float, default=0)
+    parser.add_argument('--prior-confidence-bypass', type=float, default=None,
+                        help='Keep detections at or above this regression confidence even when the prior is low')
+    parser.add_argument('--prior-soft-alpha', type=float, default=None,
+                        help='Use Creg*(alpha+(1-alpha)*Pscene) soft fusion instead of hard filtering')
+    parser.add_argument('--prior-soft-threshold', type=float, default=None,
+                        help='Final score threshold for --prior-soft-alpha')
     parser.add_argument('--num_templates', type=int, default=5)
     parser.add_argument('--feature_count', type=int, default=2000)
     parser.add_argument('--border_exclude', type=int, default=50)
@@ -325,6 +387,14 @@ def main():
     parser.add_argument('--min_move_m', type=float, default=1.2)
     parser.add_argument('--merge_distance_pixel', type=float, default=6.0)
     args = parser.parse_args()
+    if (args.static_prior_map or args.full_aoi_prior_model or
+            args.full_aoi_prior_context) and len(args.aoi_list) != 1:
+        parser.error('A fixed SPGF prior/model context is AOI-specific; provide '
+                     'exactly one AOI in --aoi_list')
+    if (args.prior_soft_alpha is None) != (args.prior_soft_threshold is None):
+        parser.error('--prior-soft-alpha and --prior-soft-threshold must be supplied together')
+    if args.prior_soft_alpha is not None and not 0.0 <= args.prior_soft_alpha <= 1.0:
+        parser.error('--prior-soft-alpha must be within [0,1]')
 
     # 内存初始值
     if HAS_PSUTIL:
@@ -344,13 +414,44 @@ def main():
         if k in reg_norm: aveImg_reg = reg_norm[k]; break
     if aveImg_reg is None: raise KeyError("回归均值未找到")
 
-    prior_net = None
-    prior_input_size = None
-    if args.use_scene_prior:
-        print("加载场景先验网络...")
-        prior_input_size = tuple(map(int, args.prior_input_size.split(',')))
-        prior_net = build_scene_prior_net(input_shape=(prior_input_size[0], prior_input_size[1], 1), num_filters=32)
-        prior_net.load_weights(args.prior_model)
+    static_prior = None
+    if args.full_aoi_prior_model or args.full_aoi_prior_context:
+        if not (args.full_aoi_prior_model and args.full_aoi_prior_context):
+            raise ValueError('--full-aoi-prior-model and --full-aoi-prior-context must be supplied together')
+        if args.static_prior_map:
+            raise ValueError('--static-prior-map cannot be combined with --full-aoi-prior-model')
+        context = cv2.imread(args.full_aoi_prior_context, cv2.IMREAD_GRAYSCALE)
+        if context is None:
+            raise FileNotFoundError(args.full_aoi_prior_context)
+        print('Loading native-resolution full-AOI scene-prior network...')
+        from SPGF.model import GroupNormalization
+        full_prior_net = tf.keras.models.load_model(
+            args.full_aoi_prior_model,
+            custom_objects={'GroupNormalization': GroupNormalization}, compile=False)
+        expected = tuple(full_prior_net.input_shape[1:3])
+        if all(value is not None for value in expected) and context.shape != expected:
+            raise ValueError(f'Full-AOI prior context {context.shape} does not match model input {expected}')
+        prediction = full_prior_net.predict(
+            context[None, ..., None].astype(np.float32) / 255.0, verbose=0)[0]
+        if prediction.ndim != 3 or prediction.shape[-1] != 2:
+            raise ValueError('SPGF-V4 must output access and motion probability channels')
+        static_prior = np.sqrt(np.clip(prediction[..., 0] * prediction[..., 1], 0, 1))
+        print(f'Native-resolution prior ready: shape={static_prior.shape}, mean={static_prior.mean():.4f}')
+    elif args.static_prior_map:
+        static_prior = np.asarray(np.load(args.static_prior_map), np.float32)
+        if static_prior.ndim != 2:
+            raise ValueError('--static-prior-map must contain one HxW array')
+        if args.prior_dilation_radius < 0:
+            raise ValueError('--prior-dilation-radius must be non-negative')
+        if args.prior_dilation_radius > 0:
+            radius = args.prior_dilation_radius
+            kernel = cv2.getStructuringElement(
+                cv2.MORPH_ELLIPSE, (2 * radius + 1, 2 * radius + 1))
+            static_prior = cv2.dilate(static_prior, kernel)
+        print('Loading static scene-occurrence prior...')
+    elif args.use_scene_prior:
+        parser.error('--use-scene-prior requires --static-prior-map or both '
+                     '--full-aoi-prior-model and --full-aoi-prior-context')
 
     models = (model_bin, aveImg_bin, model_reg, aveImg_reg)
 
@@ -361,17 +462,21 @@ def main():
         motion_alpha=args.motion_alpha,
         motion_thr=args.motion_thr,
         prior_threshold=args.prior_threshold,
+        prior_confidence_bypass=args.prior_confidence_bypass,
+        prior_soft_alpha=args.prior_soft_alpha,
+        prior_soft_threshold=args.prior_soft_threshold,
         num_templates=args.num_templates,
         feature_count=args.feature_count,
         border_exclude=args.border_exclude,
         match_distance_m=args.match_distance_m,
         min_move_m=args.min_move_m,
         merge_distance_pixel=args.merge_distance_pixel,
+        classifier_threshold=args.classifier_threshold,
+        regression_threshold=args.regression_threshold,
         truth_csv=args.truth_csv,
         use_motion=args.use_motion,
-        use_scene_prior=args.use_scene_prior,
-        prior_net=prior_net,
-        prior_input_size=prior_input_size,
+        use_scene_prior=(args.use_scene_prior or static_prior is not None),
+        static_prior=static_prior,
     )
 
     aoi_metrics = {}
@@ -381,7 +486,12 @@ def main():
     total_processing_frames = 0
 
     for aoi in args.aoi_list:
-        png_folder = os.path.join(args.png_root, f"AOI{aoi}")
+        if args.png_folder:
+            if len(args.aoi_list) != 1:
+                raise ValueError('--png-folder is valid only when exactly one AOI is requested')
+            png_folder = args.png_folder
+        else:
+            png_folder = os.path.join(args.png_root, f"AOI{aoi}")
         out_dir = os.path.join(args.output_base, f"AOI{aoi}")
         os.makedirs(out_dir, exist_ok=True)
         print(f"\n#### 处理 AOI {aoi} ####")

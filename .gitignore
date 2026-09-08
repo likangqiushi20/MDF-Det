@@ -43,6 +43,9 @@ prior_labels/
 cache/
 outputs/
 results/
+result/
+data/
+models/
 runs/
 logs/
 run.txt

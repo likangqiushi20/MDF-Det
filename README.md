@@ -1,72 +1,64 @@
 # MDF-Det
 
-MDF-Det detects small moving vehicles in Wide Area Motion Imagery (WAMI). It
-combines image registration, multi-frame background subtraction, CNN candidate
-refinement, position regression, optional optical-flow motion fusion, and
-scene-prior filtering.
+MDF-Det is a coarse-to-fine framework for detecting extremely small moving
+vehicles in Wide Area Motion Imagery (WAMI). This repository contains the
+revised implementation used after peer review, including the native-resolution
+SPGF scene-prior module and leakage-controlled cross-AOI training protocol.
 
-The repository contains source code and small normalization parameters only.
-Model weights, datasets, cached files, and experiment outputs are intentionally
-excluded.
+Datasets, model weights, cached arrays, and experimental outputs are not stored
+in Git.
 
-## What WAMI looks like
+## WAMI and framework overview
 
 ![WAMI coverage and small-target scale](docs/images/wami_overview.png)
 
-Wide Area Motion Imagery observes a very large geographic area in every frame,
-often covering roads, buildings, vegetation, water, and airfields at the same
-time. The two magnified insets illustrate the defining scale challenge: a
-vehicle that matters to the detector occupies only a few pixels inside the
-original wide-area frame. Platform motion, parallax, low target contrast, and
-cluttered backgrounds therefore make direct frame-by-frame object detection
-difficult.
-
-## Method overview
-
 ![MDF-Det research framework](docs/images/mdf_det_framework.png)
 
-The proposed framework is organized into three complementary stages:
+The detector contains three complementary modules:
 
-1. **Motion and appearance feature fusion.** Historical frames are aligned to
-   the current frame. Gray-level background differences and optical-flow motion
-   cues are fused to generate high-recall coarse candidates.
-2. **Spatial attention-guided target decoupling.** Multi-frame patches are
-   screened by a binary classifier, encoded at multiple feature levels, and
-   regressed into a response heatmap. Upsampling, thresholding, and decoupling
-   recover precise centers, including multiple nearby vehicles inside one
-   candidate region.
-3. **Scene-prior guided filtering.** A scene-prior network estimates where
-   vehicles are plausible—especially road structures—and suppresses detections
-   caused by background motion or clutter away from relevant regions.
+1. **MAFF:** registers historical frames to the current frame and combines
+   temporal background difference with dense optical-flow evidence to generate
+   high-recall candidates.
+2. **SA-TD:** applies binary classification and spatial-attention heatmap
+   regression, followed by threshold-degradation decoding to separate nearby
+   targets.
+3. **SPGF:** predicts a soft vehicle-presence prior from native-resolution local
+   scene appearance and conservatively removes detections in implausible areas.
 
-The surviving detections form the final wide-area moving-target output.
+The revised SPGF does not resize an entire WAMI frame to 256 x 256 and does not
+use coordinate channels or absolute positional embeddings. It is trained on
+384 x 384 native-resolution patches. Image patches and labels intersecting the
+six evaluation AOIs are excluded from training and validation.
 
-## Pipeline
+### Scene-prior visualization and geographic transfer
 
-1. Register previous frames to the current frame with ORB features and a
-   homography.
-2. Build a temporal median background from registered frames.
-3. Generate moving-object candidates by background subtraction.
-4. Reject false candidates with a binary CNN.
-5. Estimate vehicle centers with a regression CNN.
-6. Optionally fuse optical-flow motion and scene-prior filtering.
+![SPGF priors on WPAFB 2009 and Greene 2007](docs/images/spgf_cross_dataset.png)
+
+The upper panel shows the predicted vehicle-presence prior for the six held-out
+WPAFB 2009 AOIs. The lower panel shows zero-shot predictions on Greene 2007:
+the SPGF model receives no Greene labels and is not fine-tuned on that dataset.
+High responses follow semantically plausible vehicle regions such as roads,
+intersections, and parking areas, while most implausible background is
+suppressed. These maps are soft priors rather than binary road masks.
 
 ## Repository structure
 
 ```text
-MovingObjectDetector/       Registration, background modeling and refinement
-TrainNetwork/               Legacy CNN training and model-loading utilities
+MovingObjectDetector/       Registration, background modelling and CNN refinement
+TrainNetwork/               Binary-classification and regression utilities
+SPGF/                       Revised scene-prior dataset, model, training and inference
+scripts/analysis/           Statistical analysis used in the revision
+scripts/figures/            Reproducible publication-figure utilities
 WAMI_detector.py            Basic full-frame detector
-WAMI_detector_multi_AOI.py  Multi-AOI detector with motion/prior fusion
-WAMI_detector_multi_AOI_origreg.py
-train_*.py                  Attention/regression/scene-prior training scripts
+WAMI_detector_multi_AOI.py  Multi-AOI detector with MAFF, SA-TD and SPGF support
+extract_aoi_from_wpafb_nitf.py
 compute_metrics*.py         Evaluation utilities
 ```
 
 ## Installation
 
-Python 3.9 is recommended for the legacy TensorFlow and NumPy APIs used by this
-code.
+Python 3.9 is recommended for compatibility with the TensorFlow models used in
+the experiments.
 
 ```bash
 python -m venv .venv
@@ -76,26 +68,15 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-For the NITF/AOI and OpenStreetMap utilities, install GDAL for your platform
-and then run:
-
-```bash
-pip install -r requirements-geo.txt
-```
+NITF/AOI processing additionally requires GDAL and the packages listed in
+`requirements-geo.txt`. On Windows, installing GDAL through conda-forge is
+recommended.
 
 ## Model files
 
-Inference requires model weights that are not stored in Git. Place your
-weights at the following paths:
-
-```text
-Models/BinaryClassification/saved_model_2.model
-Models/Regression/saved_model_3.model
-regression_spatial_attention.h5        # multi-AOI attention regression
-scene_prior_net.h5                     # multi-AOI scene prior
-```
-
-The corresponding small normalization files are included:
+Inference requires model weights that are intentionally not committed. Place
+compatible files at locations of your choice and pass them on the command
+line. The legacy normalization arrays retained in the repository are:
 
 ```text
 Models/BinaryClassification/saved_image_norm_2.model
@@ -103,13 +84,11 @@ Models/Regression/saved_image_norm_3.model
 regression_norm_params.npz
 ```
 
-If you do not already have compatible weights, use the training scripts in
-`TrainNetwork/` and the top-level `train_*.py` files to create them. Training
-data is not included.
+Typical external weights are a binary classifier, the spatial-attention
+regression model, and `best_semantic_prior_v4.h5`. See [SPGF/README.md](SPGF/README.md)
+for generation of the fixed per-AOI prior map.
 
 ## Basic detector
-
-Prepare a directory containing chronologically named PNG/JPEG frames, then run:
 
 ```bash
 python WAMI_detector.py \
@@ -120,45 +99,65 @@ python WAMI_detector.py \
   --NumOfTemplate 3
 ```
 
-Processed frames are written to the output directory and detection coordinates
-are written as CSV files under `WAMI-output/CSV/`.
+## Multi-AOI detector with revised SPGF
 
-## Multi-AOI detector
-
-The multi-AOI entry point additionally expects extracted AOI frames, a truth
-CSV file containing the geospatial metadata used by the script, and the
-attention-regression and scene-prior weights:
+Generate `combined_prior.npy` once for a fixed AOI, then reuse it for all
+registered frames from that AOI:
 
 ```bash
 python WAMI_detector_multi_AOI.py \
-  --png_root /path/to/aoi_frames \
+  --aoi_list 01 \
+  --png_root /path/to/aoi_root \
   --truth_csv /path/to/truth.csv \
   --output_base ./WAMI-output \
   --binary_model_dir ./Models \
-  --regression_model ./regression_spatial_attention.h5 \
+  --regression_model /path/to/regression_spatial_attention.h5 \
   --regression_norm ./regression_norm_params.npz \
-  --prior_model ./scene_prior_net.h5
+  --use-scene-prior \
+  --static-prior-map /path/to/combined_prior.npy
 ```
 
-Use `python WAMI_detector_multi_AOI.py --help` for all AOI, threshold, motion,
-and matching options.
+Use `python WAMI_detector_multi_AOI.py --help` for the remaining module
+switches. The prior can also be produced once inside the detector by supplying
+`--full-aoi-prior-model` together with `--full-aoi-prior-context`.
 
-## Data and weights policy
+## Paired temporal-block bootstrap
 
-The dataset is not distributed with this repository. To request access for
-research use, please contact the author at
+For temporally correlated WAMI frames, the revision uses paired block
+resampling rather than treating individual frames as independent samples. Each
+method directory must contain `aoi01.json`, ..., `aoi41.json`; every file must
+include per-frame `frame`, `tp`, `fp`, and `fn` fields.
+
+```bash
+python scripts/analysis/paired_temporal_block_bootstrap.py \
+  --mdf-dir /path/to/mdf_results \
+  --baseline-dir /path/to/baseline_results \
+  --output result/paired_bootstrap \
+  --first-frame 612 --last-frame 1124 \
+  --block-sizes 10 20 30 --primary-block 20 \
+  --resamples 10000 --seed 20260907
+```
+
+The script verifies identical per-frame truth counts for both methods, applies
+the same sampled temporal blocks to both methods and all AOIs, accumulates
+TP/FP/FN before recomputing F1, and reports the confidence interval of the
+paired macro-AOI F1 difference.
+
+## Data and weights
+
+The WPAFB/WAMI dataset is not distributed with this repository. To request
+dataset access for research use, contact
 [likangqiushi20@nudt.edu.cn](mailto:likangqiushi20@nudt.edu.cn).
 
-Do not commit model weights, WAMI imagery, generated labels, or experiment
-outputs. The supplied `.gitignore` excludes these files. For reproducible
-inference, publish weights separately (for example, as a GitHub Release or an
-external download) and document their checksums here.
+Do not commit imagery, generated training shards, model checkpoints, cached
+priors, or experiment outputs. Publish trained weights separately, for example
+as a GitHub Release, and document their checksums.
 
 ## Reference
 
 Y. Zhou and S. Maskell, "Detecting and Tracking Small Moving Objects in Wide
 Area Motion Imagery (WAMI) Using Convolutional Neural Networks (CNNs)," 2019
-22nd International Conference on Information Fusion (FUSION), pp. 1-8,
+22nd International Conference on Information Fusion (FUSION), pp. 1--8,
 doi: 10.23919/FUSION43075.2019.9011271.
 
 ## License
