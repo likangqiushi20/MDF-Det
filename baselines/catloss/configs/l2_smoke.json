@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "catloss_l2_pipeline_smoke",
+  "seed": 23,
+  "aoi": "01",
+  "train_frames": [103, 104, 105, 106],
+  "validation_frames": [107, 108],
+  "temporal_channels": 4,
+  "epochs": 2,
+  "max_positive_patches_per_frame": 32,
+  "negatives_per_positive": 1,
+  "hard_negative_fraction": 0.5,
+  "objectness_learning_rate": 0.001,
+  "localization_learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "tau": 0.2,
+  "q": 0.5,
+  "dilation_mode": "half",
+  "checkpoint": "runs/catloss/l2_smoke.pt",
+  "report": "generated/catloss_l2_train_smoke.json"
+}

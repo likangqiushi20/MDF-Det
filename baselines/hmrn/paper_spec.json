@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "paper": "HMRN: heat map regression network to detect and track small objects in wide-area motion imagery",
+  "resolution": {"level": "r1", "reference_size": [13312, 10752]},
+  "inputs": ["current_grayscale", "previous_grayscale", "previous_object_heatmap"],
+  "outputs": ["current_center_heatmap", "current_to_previous_displacement_xy"],
+  "paper_facts": {
+    "backbone": "iterative deep aggregation with residual blocks",
+    "center_loss": "CenterNet modified focal loss alpha=2 beta=4",
+    "motion_loss": "L1 at object center locations",
+    "local_maximum": "3x3",
+    "association": "confidence-descending greedy nearest unmatched prior detection",
+    "crop_size": [960, 544],
+    "optimizer": "Adam",
+    "learning_rate": 0.000125,
+    "batch_size": 16,
+    "epochs": 100,
+    "lr_drop_epoch": 60,
+    "reported_early_stop_epoch": 75
+  },
+  "reproduction_decisions": {
+    "output_stride": 4,
+    "backbone": "compact four-stage IDA/DLA because exact DLA variant is undisclosed",
+    "stage_channels": [32, 64, 128, 256],
+    "center_gaussian_sigma_output_px": 1.5,
+    "previous_heatmap_sigma_input_px": 6.0,
+    "center_head_initial_bias": -2.19,
+    "association_radius_px": 20.0
+  },
+  "truth": {"moving_threshold_m": 0.8},
+  "evaluation": {"detection_radius_px": 10}
+}

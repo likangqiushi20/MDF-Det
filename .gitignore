@@ -49,6 +49,10 @@ models/
 runs/
 logs/
 run.txt
+baselines/generated/
+baselines/runs/
+baselines/**/generated/
+baselines/**/runs/
 
 # Large data and generated media
 *.mat

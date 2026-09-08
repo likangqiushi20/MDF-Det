@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "resolution_profiles": {
+    "clusternet": {
+      "level": "r0",
+      "basis": "Paper uses full-resolution imagery; r0 is the highest local NITF level.",
+      "observed_mean_gsd_m_per_pixel": [0.2526, 0.2578],
+      "status": "verified_by_local_resolution_audit"
+    },
+    "catloss": {
+      "level": "r1",
+      "basis": "Paper reports reduced inputs at approximately 0.4-0.5 m/px.",
+      "observed_mean_gsd_m_per_pixel": [0.5051, 0.5157],
+      "status": "verified_by_local_resolution_audit",
+      "note": "The local GSD is slightly above the paper's approximate upper bound but matches the half-resolution level."
+    },
+    "hmrn": {
+      "level": "r1",
+      "basis": "Paper reports approximately 12K x 10K input.",
+      "observed_width_range": [11776, 15104],
+      "observed_height_range": [9216, 11520],
+      "status": "verified_by_local_resolution_audit"
+    },
+    "hm_net": {
+      "level": "r1",
+      "basis": "Paper downsamples roughly 25K x 20K imagery by two.",
+      "observed_width_range": [11776, 15104],
+      "observed_height_range": [9216, 11520],
+      "status": "verified_by_local_resolution_audit"
+    }
+  },
+  "split_profiles": {
+    "clusternet_paper": [
+      {"name": "C1", "train_aois": ["40", "41", "42"], "test_aois": ["02", "03", "34"]},
+      {"name": "C2", "train_aois": ["34", "41", "42"], "test_aois": ["01", "40"]},
+      {"name": "C3", "train_aois": ["34", "40"], "test_aois": ["04", "41", "42"]}
+    ],
+    "catloss_paper": [
+      {"name": "L1", "train_aois": ["40", "41"], "test_aois": ["02", "03", "34"]},
+      {"name": "L2", "train_aois": ["34", "41"], "test_aois": ["01", "40"]},
+      {"name": "L3", "train_aois": ["34", "40"], "test_aois": ["04", "41"]}
+    ],
+    "same_geography_paper_protocol": {
+      "papers": ["hmrn", "hm_net"],
+      "warning": "Training crops may overlap test AOI geography. Report separately from a non-overlapping generalization protocol."
+    }
+  },
+  "evaluation_profiles": {
+    "clusternet_paper": {"unit": "pixel", "radius": 20, "approx_meters": 5, "one_to_one": true},
+    "catloss_paper": {"unit": "pixel", "radius": 10, "approx_meters": 5, "one_to_one": true},
+    "hmrn_paper": {"unit": "pixel", "radius": 10, "one_to_one": true},
+    "hm_net_paper": {"unit": "pixel", "radius": 10, "one_to_one": true},
+    "cross_paper_primary": {"unit": "meter", "radius": 5, "one_to_one": true}
+  },
+  "aoi_profiles": {
+    "geographic_bounds_status": {
+      "status": "legacy_pending_registration_coordinate_audit",
+      "basis": "Copied from the current project's extraction script. They are valid raw-NITF geographic crops but do not exactly reproduce every paper-reported registered AOI size."
+    },
+    "geographic_bounds_wgs84": {
+      "01": {"left": -84.125664, "top": 39.771185, "right": -84.119895, "bottom": 39.765354},
+      "02": {"left": -84.122165, "top": 39.786161, "right": -84.116273, "bottom": 39.780145},
+      "03": {"left": -84.101297, "top": 39.781737, "right": -84.095836, "bottom": 39.775665},
+      "04": {"left": -84.122289, "top": 39.766089, "right": -84.116211, "bottom": 39.760628},
+      "34": {"left": -84.126152, "top": 39.78315, "right": -84.114983, "bottom": 39.776215},
+      "40": {"left": -84.12738, "top": 39.772167, "right": -84.11879, "bottom": 39.765719},
+      "41": {"left": -84.121796, "top": 39.772351, "right": -84.113391, "bottom": 39.764676},
+      "42": {"status": "unresolved_subregion_of_41"}
+    },
+    "clusternet_reported_full_resolution_sizes": {
+      "01": [2278, 2278],
+      "02": [2278, 2278],
+      "03": [2278, 2278],
+      "04": [2278, 2278],
+      "34": [4260, 2604],
+      "40": [3265, 2542],
+      "41": [3207, 2892]
+    },
+    "hmrn_hm_net_r1_pixel_boxes": {
+      "01": {"center": [4700, 8050], "size": [1200, 1200]},
+      "02": {"center": [5650, 5300], "size": [1200, 1200]},
+      "03": {"center": [9400, 5950], "size": [1200, 1200]},
+      "34": {"center": [5300, 6300], "size": [2400, 1600]},
+      "40": {"center": [4850, 8050], "size": [2000, 1400]},
+      "41": {"center": [6000, 8250], "size": [1800, 1600]}
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "seed": 20260730,
+  "train_frames": [101, 560],
+  "validation_frames": [561, 611],
+  "train_aois": ["01", "02", "03", "34", "40", "41"],
+  "epochs": 40,
+  "learning_rate": 0.0003,
+  "effective_batch_size": 6,
+  "micro_batch_size": 2,
+  "loss_weights": {"center": 1.0, "motion": 1.0, "precision": 1.0},
+  "feedback_robustness": {
+    "frame_dropout_start": 0.10,
+    "frame_dropout_end": 0.50,
+    "center_dropout": 0.15,
+    "validation_frame_dropout": 0.50,
+    "validation_center_dropout": 0.15
+  },
+  "selection_metric": "detection_f1",
+  "validation_detection_thresholds": [0.03, 0.05, 0.08, 0.12, 0.18, 0.25, 0.35, 0.50],
+  "validation_match_radius": 10.0,
+  "validation_max_detections": 2000,
+  "frame_cache": "generated/frame_cache/cache.json",
+  "checkpoint": "runs/hm_net/fixed_fair_train_best.pt",
+  "report": "runs/hm_net/fixed_fair_train.json",
+  "comparison_protocol": "common/configs/fair_comparison.json",
+  "test_set_used": false
+}

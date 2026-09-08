@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "paper": "Crowd-aware Thresholded Loss for Object Detection in WAMI",
+  "data": {
+    "resolution_profile": "catloss",
+    "level": "r1",
+    "causal": true,
+    "current_and_past_frames_only": true,
+    "objectness_patch_size": [21, 21],
+    "localization_patch_size": [45, 45],
+    "localization_output_size": [15, 15],
+    "patch_size_status": "reproduction_decision_from_current_project",
+    "paper_statement": "Localization patches are around five times larger in area than classification patches."
+  },
+  "objectness_network": {
+    "layers": [
+      "Conv3x3-32, BN, ReLU",
+      "Conv3x3-32, BN, ReLU",
+      "Conv3x3-64, BN, ReLU",
+      "MaxPool2x2 stride2",
+      "Conv3x3-128, BN, ReLU",
+      "FC-256, BN, ReLU",
+      "FC-2"
+    ],
+    "loss": "binary focal loss",
+    "negative_sampling": "epoch-wise resampling from hard-BGS and ordinary pools"
+  },
+  "localization_network": {
+    "half_dilated": [
+      "Conv5x5-32, BN, ReLU",
+      "Conv3x3-32, BN, ReLU",
+      "MaxPool2x2 stride2",
+      "DilatedConv3x3-64 dilation2, BN, ReLU",
+      "DilatedConv3x3-128 dilation2, BN, ReLU",
+      "FC-512, BN, ReLU",
+      "FC-output_size"
+    ],
+    "full_dilated": [
+      "DilatedConv5x5-32 dilation2, BN, ReLU",
+      "DilatedConv3x3-32 dilation2, BN, ReLU",
+      "MaxPool2x2 stride2",
+      "DilatedConv3x3-64 dilation2, BN, ReLU",
+      "DilatedConv3x3-128 dilation2, BN, ReLU",
+      "FC-512, BN, ReLU",
+      "FC-output_size"
+    ],
+    "target": "binary center map",
+    "paper_note": "Gaussian targets performed worse because annotation clicks are inconsistent."
+  },
+  "losses": {
+    "tloss_tau": 0.2,
+    "catloss_formula": "r^q * TLoss",
+    "q_search_range": [0.0, 2.0],
+    "paper_comment": "q often works better between 0 and 1"
+  },
+  "training": {
+    "optimizer": "AdamW",
+    "objectness_batch_search": [128, 256, 512, 1024],
+    "localization_batch_search": [128, 256, 512],
+    "objectness_lr_search": [0.0000454, 0.0183],
+    "localization_lr_search": [0.0001234, 0.0183],
+    "scheduler_search": ["time_decay", "reduce_plateau", "one_cycle"],
+    "selected_hyperparameters_status": "not_disclosed"
+  },
+  "evaluation": {
+    "one_to_one": true,
+    "radius_px": 10,
+    "approx_radius_m": 5
+  }
+}

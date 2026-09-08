@@ -1,0 +1,21 @@
+{
+  "seed": 20260730,
+  "train_frames": [101, 560],
+  "validation_frames": [561, 611],
+  "train_aois": ["01", "02", "03", "34", "40", "41"],
+  "epochs": 75,
+  "learning_rate": 0.000125,
+  "lr_drop_epoch": 60,
+  "lr_drop_factor": 0.1,
+  "effective_batch_size": 16,
+  "micro_batch_size": 4,
+  "center_loss_weight": 1.0,
+  "motion_loss_weight": 1.0,
+  "crop_width": 960,
+  "crop_height": 544,
+  "frame_cache": "generated/frame_cache/cache.json",
+  "checkpoint": "runs/hmrn/optimized_fair_train_best.pt",
+  "report": "runs/hmrn/optimized_fair_train.json",
+  "comparison_protocol": "common/configs/fair_comparison.json",
+  "test_set_used": false
+}

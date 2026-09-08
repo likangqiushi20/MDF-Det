@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "cross_paper_r1_common_aoi",
+  "description": "Fair four-method comparison on identical r1 pixels and AOI extents.",
+  "source_grid_profile": "hmrn",
+  "target_papers": ["clusternet", "catloss", "hmrn", "hm_net"],
+  "image_level": "r1",
+  "aois": ["01", "02", "03", "34", "40", "41"],
+  "train_frames": [100, 611],
+  "self_test_frames": [612, 1124],
+  "evaluation": {
+    "one_to_one": true,
+    "match_radius_m": 5.0
+  },
+  "rules": {
+    "same_source_pixels": true,
+    "same_aoi_extent": true,
+    "same_truth_projection": true,
+    "paper_native_results_must_be_reported_separately": true
+  }
+}

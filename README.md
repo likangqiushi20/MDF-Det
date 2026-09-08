@@ -55,9 +55,19 @@ scripts/analysis/           Statistical analysis used in the revision
 scripts/figures/            Reproducible publication-figure utilities
 WAMI_detector.py            Basic full-frame detector
 WAMI_detector_multi_AOI.py  Multi-AOI detector with MAFF, SA-TD and SPGF support
+baselines/                  Reproduced comparison methods and shared protocol
 extract_aoi_from_wpafb_nitf.py
 compute_metrics*.py         Evaluation utilities
 ```
+
+## Reproduced baselines
+
+The public code also includes independent reproductions of ClusterNet +
+FoveaNet, HMRN, HM-Net and CATLoss. They share the same WPAFB data geometry and
+point-matching utilities used in the comparison. See
+[baselines/README.md](baselines/README.md) for structure, setup and entry
+points. TTE-KH, generated caches, experimental results and checkpoints are not
+included in this repository.
 
 ## Installation
 

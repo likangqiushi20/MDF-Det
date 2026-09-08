@@ -1,0 +1,16 @@
+{
+  "seed": 20260730,
+  "train_frames": [101, 560],
+  "validation_frames": [561, 611],
+  "train_aois": ["01", "02", "03", "34", "40", "41"],
+  "epochs": 1,
+  "learning_rate": 0.0013,
+  "effective_batch_size": 6,
+  "micro_batch_size": 2,
+  "loss_weights": {"center": 1.0, "motion": 1.0, "precision": 1.0},
+  "frame_cache": "generated/frame_cache/cache.json",
+  "checkpoint": "generated/hm_net_optimized_fair_one_epoch.pt",
+  "report": "generated/hm_net_optimized_fair_one_epoch.json",
+  "comparison_protocol": "common/configs/fair_comparison.json",
+  "test_set_used": false
+}

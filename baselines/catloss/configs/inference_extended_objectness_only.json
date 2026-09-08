@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "checkpoint": "runs/catloss/l2_extended.pt",
+  "split": "train",
+  "aoi": "01",
+  "frame": 141,
+  "foreground_quantile": 0.95,
+  "objectness_threshold": 0.58,
+  "complex_area_threshold": 1001,
+  "localization_peak_threshold": 0.2,
+  "match_radius_px": 10,
+  "output": "generated/catloss_l2_extended_objectness_only.json"
+}

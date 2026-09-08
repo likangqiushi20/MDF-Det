@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "paper": "HM-Net: A Regression Network for Object Center Detection and Tracking on Wide Area Motion Imagery",
+  "resolution": {"level": "r1", "downsample_factor": 2},
+  "inputs": ["current_grayscale", "previous_grayscale", "previous_two_class_sgr_heatmap"],
+  "outputs": ["two_class_center", "motion_xy", "subpixel_precision_xy"],
+  "paper_facts": {
+    "classes": ["moving", "stationary"],
+    "crop_size": [960, 544],
+    "encoder_channels": [32, 64, 128, 256],
+    "cascaded_autoencoders": 2,
+    "encoder_blocks_per_stage": 4,
+    "nms_window": 15,
+    "center_loss": "modified focal alpha=2 beta=4",
+    "motion_loss": "center-masked L1",
+    "precision_loss": "center-masked L1",
+    "optimizer": "Adam",
+    "learning_rate": 0.0013,
+    "batch_size": 6,
+    "epochs": 16,
+    "detection_threshold": 0.32,
+    "sgr_threshold": 0.28,
+    "sgr_amplification": 1.2,
+    "rcr_probability": 0.7,
+    "rcr_max_reduction": 0.8,
+    "detection_radius_px": 10
+  },
+  "reproduction_decisions": {
+    "gaussian_sigma_px": 3.0,
+    "hungarian_gate_px": 20.0,
+    "loss_weights": {"center": 1.0, "motion": 1.0, "precision": 1.0},
+    "motion_head_final_activation": "linear",
+    "rcr_interpretation": "multiply confidence by U(0.2,1.0) with probability 0.7",
+    "rcp_false_centers_per_object": 1,
+    "rcp_jitter_radius_px": 12
+  }
+}

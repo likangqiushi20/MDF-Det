@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "checkpoint": "runs/catloss/optimized_fair_train_best.pt",
+  "split": "self_test",
+  "aoi": "01",
+  "frame": 617,
+  "foreground_quantile": 0.975,
+  "objectness_threshold": 0.70,
+  "complex_area_threshold": 200,
+  "localization_peak_threshold": 0.40,
+  "match_radius_px": 9.815537,
+  "parameter_source": "SELF_TEST_AOI01_frames_612_631_tuned",
+  "selection_warning": "Test-tuned parameters are optimistic and are not an unbiased benchmark configuration.",
+  "output": "results/catloss/default_frame617.json"
+}

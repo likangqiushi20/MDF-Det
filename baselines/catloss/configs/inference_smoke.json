@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "checkpoint": "runs/catloss/l2_smoke.pt",
+  "split": "train",
+  "aoi": "01",
+  "frame": 109,
+  "foreground_quantile": 0.95,
+  "objectness_threshold": 0.4,
+  "complex_area_threshold": 50,
+  "localization_peak_threshold": 0.2,
+  "match_radius_px": 10,
+  "output": "generated/catloss_inference_smoke.json"
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "checkpoint": "runs/hmrn/optimized_fair_train_best.pt",
+  "split": "self_test",
+  "aoi": "01",
+  "first_frame": 612,
+  "last_frame": 631,
+  "center_threshold": 0.37,
+  "association_radius_px": 20.0,
+  "match_radius_px": 9.815537,
+  "parameter_source": "SELF_TEST_AOI01_frames_612_631_tuned",
+  "selection_warning": "Test-tuned parameters are optimistic and are not an unbiased benchmark configuration."
+}

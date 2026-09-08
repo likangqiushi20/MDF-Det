@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "legacy_current_project": {
+    "homography_direction": "template_source_to_current_destination",
+    "evidence": [
+      "CalcHomography(frame1, frame2) calls cv2.findHomography(pts_src_from_frame1, pts_dst_from_frame2).",
+      "ImageRegistration warps each template with that homography into the current frame shape."
+    ],
+    "output_canvas": "current_frame",
+    "global_fixed_canvas": false,
+    "suitable_for": [
+      "local temporal background compensation",
+      "detections expressed in the current frame or current AOI crop"
+    ],
+    "not_sufficient_for": [
+      "reproducing paper AOI boxes defined on a fixed registered full-frame canvas",
+      "directly reusing a pixel AOI box across raw frames"
+    ]
+  },
+  "paper_fixed_registered_canvas": {
+    "status": "unresolved",
+    "required_decisions": [
+      "reference frame or map projection",
+      "fixed output extent and pixel resolution",
+      "homography or geospatial warp composition",
+      "truth transformation into the fixed canvas"
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+{"checkpoint":"runs/catloss/ablation_tloss.pt","split":"train","aoi":"01","frame":141,"foreground_quantile":0.95,"objectness_threshold":0.58,"complex_area_threshold":200,"localization_peak_threshold":0.4,"match_radius_px":10,"output":"generated/catloss_ablation_tloss_holdout.json"}
