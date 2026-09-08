@@ -12,6 +12,10 @@ in Git.
 
 ![WAMI coverage and small-target scale](docs/images/wami_overview.png)
 
+<p align="center"><em>Overview of the wide-area coverage and extremely small vehicle targets in WAMI.</em></p>
+
+### MDF-Det framework
+
 ![MDF-Det research framework](docs/images/mdf_det_framework.png)
 
 The detector contains three complementary modules:
