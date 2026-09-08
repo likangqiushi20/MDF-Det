@@ -45,8 +45,9 @@ evaluation.
 
 ## Pretrained weights
 
-Weights are not stored in this Git repository. The separately prepared model
-bundle uses the following layout:
+Weights are not stored in this Git repository. Download them from the
+[WAMI Methods Model Public collection](https://huggingface.co/FloralHercules/WAMI_Methods_Model_Public),
+which uses the following layout:
 
 ```text
 MDF-Det/
@@ -57,9 +58,12 @@ baselines/HM-Net/
 baselines/CATLoss/
 ```
 
-After publishing the bundle on Hugging Face, place the downloaded checkpoints
-at the paths specified by each inference configuration or update the
-`checkpoint` field accordingly.
+The individual baseline checkpoints are available in the
+[baselines weight directory](https://huggingface.co/FloralHercules/WAMI_Methods_Model_Public/tree/main/baselines).
+Place the downloaded checkpoints at the paths specified by each inference
+configuration or update the `checkpoint` field accordingly. File sizes and
+SHA-256 hashes are listed in the published
+[MANIFEST.csv](https://huggingface.co/FloralHercules/WAMI_Methods_Model_Public/blob/main/MANIFEST.csv).
 
 ## Reproducibility note
 

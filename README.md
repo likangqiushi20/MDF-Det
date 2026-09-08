@@ -86,11 +86,23 @@ NITF/AOI processing additionally requires GDAL and the packages listed in
 `requirements-geo.txt`. On Windows, installing GDAL through conda-forge is
 recommended.
 
-## Model files
+## Pretrained model weights
 
-Inference requires model weights that are intentionally not committed. Place
-compatible files at locations of your choice and pass them on the command
-line. The legacy normalization arrays retained in the repository are:
+The pretrained MDF-Det and reproduced-baseline weights are hosted in the
+[WAMI Methods Model Public collection on Hugging Face](https://huggingface.co/FloralHercules/WAMI_Methods_Model_Public).
+Model weights remain excluded from Git so that the source repository stays
+small and easy to clone.
+
+Available weight groups are:
+
+- [MDF-Det](https://huggingface.co/FloralHercules/WAMI_Methods_Model_Public/tree/main/MDF-Det): binary classifier, SA-TD regression network, normalization files and SPGF-V4.
+- [Dual-CNN](https://huggingface.co/FloralHercules/WAMI_Methods_Model_Public/tree/main/Dual-CNN): original binary-classification and regression CNNs.
+- [Reproduced baselines](https://huggingface.co/FloralHercules/WAMI_Methods_Model_Public/tree/main/baselines): ClusterNet + FoveaNet, HMRN, HM-Net and CATLoss.
+- [SHA-256 manifest](https://huggingface.co/FloralHercules/WAMI_Methods_Model_Public/blob/main/MANIFEST.csv): file sizes and integrity hashes for all published artifacts.
+
+Download the required files, place them at locations of your choice and pass
+those paths on the command line. The small legacy normalization arrays retained
+in this repository are:
 
 ```text
 Models/BinaryClassification/saved_image_norm_2.model
@@ -98,9 +110,10 @@ Models/Regression/saved_image_norm_3.model
 regression_norm_params.npz
 ```
 
-Typical external weights are a binary classifier, the spatial-attention
-regression model, and `best_semantic_prior_v4.h5`. See [SPGF/README.md](SPGF/README.md)
-for generation of the fixed per-AOI prior map.
+For complete MDF-Det inference, download the binary classifier, the
+spatial-attention regression model, their normalization files and
+`spgf_v4.h5`. See [SPGF/README.md](SPGF/README.md) for generation of the fixed
+per-AOI prior map.
 
 ## Basic detector
 
@@ -164,8 +177,8 @@ dataset access for research use, contact
 [likangqiushi20@nudt.edu.cn](mailto:likangqiushi20@nudt.edu.cn).
 
 Do not commit imagery, generated training shards, model checkpoints, cached
-priors, or experiment outputs. Publish trained weights separately, for example
-as a GitHub Release, and document their checksums.
+priors, or experiment outputs. Published weights and their checksums are
+maintained in the linked Hugging Face model repository.
 
 ## Reference
 
